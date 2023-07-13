@@ -1,6 +1,10 @@
-use std::ops;
-
 pub const NUMBER_OF_PIECES: usize = 16;
+
+pub const PAWN_START_RANK_WHITE: usize = 6;
+pub const PAWN_START_RANK_BLACK: usize = 1;
+
+pub const PROMOTION_RANK_WHITE: usize = 0;
+pub const PROMOTION_RANK_BLACK: usize = 7;
 
 pub const MAX_POSSIBLE_PAWN_MOVES: usize = 4;
 pub const MAX_POSSIBLE_KNIGHT_MOVES: usize = 8;
@@ -50,12 +54,10 @@ impl From<bool> for PieceColour {
     }
 }
 
-impl ops::Not for PieceColour {
-    type Output = PieceColour;
-
-    fn not(self) -> Self::Output {
+impl PieceColour {
+    pub fn opposite(&self) -> Self {
         match self {
-            PieceColour::None => self,
+            PieceColour::None => PieceColour::None,
             PieceColour::White => PieceColour::Black,
             PieceColour::Black => PieceColour::White,
         }
@@ -154,11 +156,29 @@ impl From<(char, usize, usize)> for Piece {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub(super) enum MoveType {
     Illegal(String),
     Normal,
-    Capture(usize, usize),
-    PromotePawn(PieceType),
+    Capture(Position),
+    PromotePawn(PieceType, Option<Position>),
     Castling(bool),
+}
+
+#[derive(PartialEq, Clone, Debug)]
+pub struct Position {
+    pub(super) file: usize,
+    pub(super) rank: usize,
+}
+
+impl Position {
+    pub(super) fn new(file: usize, rank: usize) -> Self {
+        Self { file, rank }
+    }
+}
+
+impl From<&[u8]> for Position {
+    fn from(value: &[u8]) -> Self {
+        Position::new((value[0] - 97) as usize, (8 - (value[1] - 48)) as usize)
+    }
 }

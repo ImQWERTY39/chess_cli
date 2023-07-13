@@ -1,4 +1,4 @@
-use crate::chess::{position_as_index, Board};
+use crate::chess::{Board, Position};
 use crate::game_state::GameState;
 
 use std::io::Write;
@@ -90,8 +90,8 @@ fn two_players(board: &mut Board) {
             };
 
             match board.move_piece(
-                &position_as_index(from.as_bytes()),
-                &position_as_index(to.as_bytes()),
+                Position::from(from.as_bytes()),
+                Position::from(to.as_bytes()),
                 turn,
             ) {
                 Ok(_) => {

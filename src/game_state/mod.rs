@@ -1,8 +1,8 @@
 #[derive(PartialEq)]
 pub enum GameState {
     OnGoing,
-    WhiteInCheck(usize, usize),
-    BlackInCheck(usize, usize),
+    WhiteInCheck,
+    BlackInCheck,
     WhiteWins,
     BlackWins,
     Stalemate,
