@@ -12,21 +12,7 @@ pub const MAX_POSSIBLE_BISHOP_MOVES: usize = 13;
 pub const MAX_POSSIBLE_ROOK_MOVES: usize = 14;
 pub const MAX_POSSIBLE_KING_MOVES: usize = 8;
 
-pub const KNIGHT_NOTATION: &str = "N";
-pub const BISHOP_NOTATION: &str = "B";
-pub const ROOK_NOTATION: &str = "N";
-pub const QUEEN_NOTATION: &str = "N";
-pub const KING_NOTATION: &str = "N";
-
-pub const SHORT_CASTLE_NOTATION: &str = "O-O";
-pub const LONG_CASTLE_NOTATION: &str = "O-O-O";
-
-pub const CAPTURE_NOTATION: &str = "x";
-pub const CHECK_NOTATION: &str = "+";
-pub const CHECKMATE_NOTATION: &str = "#";
-pub const PROMOTION_TO_NOTATION: &str = "=";
-
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub(super) enum PieceType {
     None,
     Pawn,
@@ -156,7 +142,7 @@ impl From<(char, usize, usize)> for Piece {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub(super) enum MoveType {
     Illegal(String),
     Normal,

@@ -14,7 +14,6 @@ pub struct Board {
     board: Vec<Vec<Piece>>,
     white_pieces: Vec<Position>,
     black_pieces: Vec<Position>,
-    moves: Vec<String>,
     last_move: Option<(Position, Position)>,
     pub state: GameState,
 }
@@ -25,21 +24,15 @@ impl From<&str> for Board {
             board: Vec::with_capacity(BOARD_SIZE),
             white_pieces: Vec::with_capacity(NUMBER_OF_PIECES),
             black_pieces: Vec::with_capacity(NUMBER_OF_PIECES),
-            moves: Vec::new(),
             last_move: None,
             state: GameState::OnGoing,
         };
 
-        let board_setup = value
-            .split('/')
-            .map(|x| x.chars().collect())
-            .collect::<Vec<Vec<char>>>();
-
-        for (rank_index, i) in board_setup.iter().enumerate() {
+        for (rank_index, i) in value.split('/').map(|x| x.chars()).enumerate() {
             let mut rank = Vec::with_capacity(BOARD_SIZE);
 
-            for (file_index, j) in i.iter().enumerate() {
-                let piece = Piece::from((*j, file_index, rank_index));
+            for (file_index, j) in i.enumerate() {
+                let piece = Piece::from((j, file_index, rank_index));
 
                 match piece.colour {
                     PieceColour::White => board
@@ -170,19 +163,107 @@ impl Board {
     }
 
     pub fn move_piece(&mut self, from: Position, to: Position, turn: bool) -> Result<(), String> {
-        // add to self.moves
-
         match self.try_move(&from, &to, turn.into()) {
             MoveType::Illegal(i) => return Err(i),
-            MoveType::Normal => {}
-            MoveType::Capture(_) => {}
-            MoveType::PromotePawn(_, _) => {}
-            MoveType::Castling(_) => {}
+            MoveType::Normal => {
+                self.set(&to, self.get(&from).clone());
+            }
+            MoveType::Capture(capture_pos) => {
+                self.set_none(&capture_pos);
+                self.set(&to, self.get(&from).clone());
+
+                if turn {
+                    let index = self
+                        .black_pieces
+                        .iter()
+                        .position(|pos| *pos == capture_pos)
+                        .unwrap();
+                    self.black_pieces.remove(index);
+                } else {
+                    let index = self
+                        .white_pieces
+                        .iter()
+                        .position(|pos| *pos == capture_pos)
+                        .unwrap();
+                    self.white_pieces.remove(index);
+                }
+            }
+            MoveType::PromotePawn(to_piece, capture_pos) => {
+                match capture_pos {
+                    Some(i) => {
+                        self.set_none(&i);
+
+                        if turn {
+                            let index = self.black_pieces.iter().position(|pos| *pos == i).unwrap();
+                            self.black_pieces.remove(index);
+                        } else {
+                            let index = self.white_pieces.iter().position(|pos| *pos == i).unwrap();
+                            self.white_pieces.remove(index);
+                        }
+                    }
+                    None => (),
+                }
+
+                self.set(
+                    &to,
+                    Piece {
+                        piece_type: to_piece,
+                        colour: turn.into(),
+                    },
+                );
+            }
+            MoveType::Castling(castle_side) => {
+                self.set(&to, self.get(&from).clone());
+
+                if castle_side {
+                    self.set(
+                        &Position::new(from.file - 1, from.rank),
+                        self.get(&Position::new(7, from.rank)).clone(),
+                    );
+
+                    if turn {
+                        let index = self
+                            .white_pieces
+                            .iter()
+                            .position(|pos| *pos == Position::new(7, from.rank))
+                            .unwrap();
+                        self.white_pieces[index] = Position::new(from.file - 1, from.rank);
+                    }
+                } else {
+                    self.set(
+                        &Position::new(from.file + 1, from.rank),
+                        self.get(&Position::new(0, from.rank)).clone(),
+                    );
+
+                    if turn {
+                        let index = self
+                            .black_pieces
+                            .iter()
+                            .position(|pos| *pos == Position::new(0, from.rank))
+                            .unwrap();
+                        self.black_pieces[index] = Position::new(from.file + 1, from.rank);
+                    }
+                }
+            }
         }
 
-        self.set(&to, self.get(&from).clone());
-        self.set_none(&from);
+        if turn {
+            let index = self
+                .white_pieces
+                .iter()
+                .position(|pos| *pos == from)
+                .unwrap();
+            self.white_pieces[index] = to.clone();
+        } else {
+            let index = self
+                .black_pieces
+                .iter()
+                .position(|pos| *pos == from)
+                .unwrap();
+            self.black_pieces[index] = to.clone();
+        }
 
+        self.set_none(&from);
         self.last_move = Some((from, to));
 
         // self.check_state();
@@ -228,9 +309,7 @@ impl Board {
             }
         };
 
-        /*if !self.is_legal_position(from, to, to_move_type) {
-            return MoveType::Illegal(String::from("It is not a legal move"));
-        }*/
+        // self.check_state_after_move()
 
         to_move_type.clone()
     }
@@ -561,7 +640,7 @@ impl Board {
         from: &Position,
         turn_colour: &PieceColour,
     ) -> Vec<(Position, MoveType)> {
-        let mut possible_moves = Vec::with_capacity(MAX_POSSIBLE_BISHOP_MOVES);
+        let mut possible_moves = Vec::with_capacity(MAX_POSSIBLE_ROOK_MOVES);
 
         for file in (0..from.file).rev() {
             let current_position = Position::new(file, from.rank);
@@ -651,19 +730,185 @@ impl Board {
         turn_colour: &PieceColour,
         can_castle: bool,
     ) -> Vec<(Position, MoveType)> {
-        todo!()
-    }
+        let mut all_moves = Vec::with_capacity(MAX_POSSIBLE_KING_MOVES);
 
-    fn is_legal_position(&self, from: &Position, to: &Position, to_move_type: &MoveType) -> bool {
-        todo!()
+        if from.rank > 0 {
+            all_moves.push(Position::new(from.file, from.rank - 1));
+
+            if from.file > 0 {
+                all_moves.push(Position::new(from.file - 1, from.rank - 1));
+            }
+
+            if from.file < 7 {
+                all_moves.push(Position::new(from.file + 1, from.rank - 1));
+            }
+        }
+
+        if from.rank < 7 {
+            all_moves.push(Position::new(from.file, from.rank + 1));
+
+            if from.file > 0 {
+                all_moves.push(Position::new(from.file - 1, from.rank + 1));
+            }
+
+            if from.file < 7 {
+                all_moves.push(Position::new(from.file + 1, from.rank + 1));
+            }
+        }
+
+        if from.file > 0 {
+            all_moves.push(Position::new(from.file - 1, from.rank));
+        }
+
+        if from.file < 7 {
+            all_moves.push(Position::new(from.file + 1, from.rank));
+        }
+
+        let mut all_moves: Vec<(Position, MoveType)> = all_moves
+            .iter()
+            .map(|to_square| {
+                let colour_on_check_square = &self.get(&to_square).colour;
+                if *colour_on_check_square == turn_colour.opposite()
+                    && !self.is_protected_square(to_square, turn_colour)
+                {
+                    Some((to_square.clone(), MoveType::Capture(to_square.clone())))
+                } else if *colour_on_check_square == PieceColour::None
+                    && !self.is_protected_square(to_square, turn_colour)
+                {
+                    Some((to_square.clone(), MoveType::Normal))
+                } else {
+                    None
+                }
+            })
+            .filter(|is_possible_move| is_possible_move.is_some())
+            .map(|possible_move| possible_move.unwrap())
+            .collect();
+
+        if can_castle {
+            if all_moves.contains(&(Position::new(from.file + 1, from.rank), MoveType::Normal))
+                && !self.is_protected_square(&Position::new(from.file + 2, from.rank), turn_colour)
+                && self.get(&Position::new(7, from.rank)).piece_type == PieceType::Rook(true)
+            {
+                all_moves.push((
+                    Position::new(from.file + 2, from.rank),
+                    MoveType::Castling(true),
+                ));
+            }
+
+            if all_moves.contains(&(Position::new(from.file - 1, from.rank), MoveType::Normal))
+                && !self.is_protected_square(&Position::new(from.file - 2, from.rank), turn_colour)
+                && self.get(&Position::new(0, from.rank)).piece_type == PieceType::Rook(true)
+            {
+                all_moves.push((
+                    Position::new(from.file - 2, from.rank),
+                    MoveType::Castling(false),
+                ));
+            }
+        }
+
+        all_moves
     }
 
     fn is_protected_square(&self, square: &Position, turn_colour: &PieceColour) -> bool {
-        todo!()
+        // CHECK IF KING IN ON PROTECTED SQUARE WHEN MAKING MOVE
+        for i in {
+            if *turn_colour == PieceColour::White {
+                &self.black_pieces
+            } else {
+                &self.white_pieces
+            }
+        } {
+            if match self.get(i).piece_type {
+                PieceType::Knight => self.all_knight_moves(i, &turn_colour.opposite()),
+                PieceType::Bishop => self.all_bishop_moves(i, &turn_colour.opposite()),
+                PieceType::Rook(_) => self.all_rook_moves(i, &turn_colour.opposite()),
+                PieceType::Queen => self.all_queen_moves(i, &turn_colour.opposite()),
+                _ => Vec::new(),
+            }
+            .iter()
+            .find(|(position, _)| position == square)
+            .is_some()
+            {
+                return true;
+            }
+        }
+
+        self.is_protected_by_king(square, turn_colour)
+            || self.is_protected_by_pawn(square, turn_colour)
     }
 
-    fn check_state(&mut self) {
-        todo!()
+    fn is_protected_by_king(&self, square: &Position, turn_colour: &PieceColour) -> bool {
+        let mut surrounding_squares = Vec::with_capacity(MAX_POSSIBLE_KING_MOVES);
+
+        if square.rank > 0 {
+            surrounding_squares.push(Position::new(square.file, square.rank - 1));
+
+            if square.file > 0 {
+                surrounding_squares.push(Position::new(square.file - 1, square.rank - 1));
+                surrounding_squares.push(Position::new(square.file - 1, square.rank));
+            }
+
+            if square.file < 7 {
+                surrounding_squares.push(Position::new(square.file + 1, square.rank - 1));
+                surrounding_squares.push(Position::new(square.file + 1, square.rank));
+            }
+        }
+
+        if square.rank < 7 {
+            surrounding_squares.push(Position::new(square.file, square.rank + 1));
+
+            if square.file > 0 {
+                surrounding_squares.push(Position::new(square.file - 1, square.rank + 1));
+            }
+
+            if square.file < 7 {
+                surrounding_squares.push(Position::new(square.file + 1, square.rank + 1));
+            }
+        }
+
+        for i in surrounding_squares {
+            let surrounding_piece = self.get(&i);
+            if (surrounding_piece.piece_type == PieceType::King(true)
+                || surrounding_piece.piece_type == PieceType::King(false))
+                && surrounding_piece.colour == turn_colour.opposite()
+            {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn is_protected_by_pawn(&self, square: &Position, turn_colour: &PieceColour) -> bool {
+        let mut possible_squares = Vec::with_capacity(2);
+
+        if *turn_colour == PieceColour::White && square.rank > 0 {
+            if square.file > 0 {
+                possible_squares.push(Position::new(square.file - 1, square.rank - 1));
+            }
+
+            if square.file < 7 {
+                possible_squares.push(Position::new(square.file + 1, square.rank - 1));
+            }
+        } else if *turn_colour == PieceColour::Black && square.rank < 7 {
+            if square.file > 0 {
+                possible_squares.push(Position::new(square.file - 1, square.rank + 1));
+            }
+
+            if square.file < 7 {
+                possible_squares.push(Position::new(square.file + 1, square.rank + 1));
+            }
+        }
+
+        for i in possible_squares {
+            let piece = self.get(&i);
+
+            if piece.piece_type == PieceType::Pawn && piece.colour == turn_colour.opposite() {
+                return true;
+            }
+        }
+
+        false
     }
 }
 

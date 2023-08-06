@@ -51,11 +51,7 @@ fn two_players(board: &mut Board) {
         println!(
             "{CLEAR_SCREEN}{}\n{}",
             board.as_string(turn),
-            if turn {
-                "White's turn: "
-            } else {
-                "Black's turn: "
-            }
+            if turn { "White's turn" } else { "Black's turn" }
         );
 
         loop {
