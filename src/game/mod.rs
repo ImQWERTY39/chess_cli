@@ -10,9 +10,9 @@ pub fn run() {
         let choice = input(
             r#"Choose game mode:
 Player vs Computer: 1 [Coming soon]
-Player 1 vs Player 2: 2 [not finished tho]
+Player 1 vs Player 2: 2
 Custom setup(computer): 3 [Coming soon]
-Custom setup(2 player): 4 [not finished tho]
+Custom setup(2 player): 4
 Exit: 5
 > "#,
         )
