@@ -1050,9 +1050,10 @@ impl Board {
                 .is_some()
             {
                 self.state = GameState::Check;
-                self.state = self.can_opponent_make_move(&turn.opposite());
             }
         }
+
+        self.state = self.can_opponent_make_move(&turn.opposite());
     }
 
     fn can_opponent_make_move(&self, turn: &PieceColour) -> GameState {
