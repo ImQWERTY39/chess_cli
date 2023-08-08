@@ -10,6 +10,7 @@ use crate::game_state::GameState;
 const BOARD_SIZE: usize = 8;
 const DEFAULT_BOARD: &str = "rhbqkbhr/pppppppp/////PPPPPPPP/RHBQKBHR";
 
+#[derive(Clone)]
 pub struct Board {
     board: Vec<Vec<Piece>>,
     white_pieces: Vec<Position>,
@@ -165,6 +166,24 @@ impl Board {
     pub fn move_piece(&mut self, from: Position, to: Position, turn: bool) -> Result<(), String> {
         match self.try_move(&from, &to, turn.into()) {
             MoveType::Illegal(i) => return Err(i),
+            move_type => self.do_the_move(&from, &to, &move_type, &turn.into()),
+        }
+
+        self.check_state(&turn.into());
+
+        Ok(())
+    }
+
+    fn do_the_move(
+        &mut self,
+        from: &Position,
+        to: &Position,
+        move_type: &MoveType,
+        turn: &PieceColour,
+    ) {
+        let turn: bool = *turn == PieceColour::White;
+        match move_type {
+            MoveType::Illegal(_) => unreachable!(),
             MoveType::Normal => {
                 self.set(&to, self.get(&from).clone());
             }
@@ -176,14 +195,14 @@ impl Board {
                     let index = self
                         .black_pieces
                         .iter()
-                        .position(|pos| *pos == capture_pos)
+                        .position(|pos| pos == capture_pos)
                         .unwrap();
                     self.black_pieces.remove(index);
                 } else {
                     let index = self
                         .white_pieces
                         .iter()
-                        .position(|pos| *pos == capture_pos)
+                        .position(|pos| pos == capture_pos)
                         .unwrap();
                     self.white_pieces.remove(index);
                 }
@@ -194,10 +213,10 @@ impl Board {
                         self.set_none(&i);
 
                         if turn {
-                            let index = self.black_pieces.iter().position(|pos| *pos == i).unwrap();
+                            let index = self.black_pieces.iter().position(|pos| pos == i).unwrap();
                             self.black_pieces.remove(index);
                         } else {
-                            let index = self.white_pieces.iter().position(|pos| *pos == i).unwrap();
+                            let index = self.white_pieces.iter().position(|pos| pos == i).unwrap();
                             self.white_pieces.remove(index);
                         }
                     }
@@ -207,7 +226,7 @@ impl Board {
                 self.set(
                     &to,
                     Piece {
-                        piece_type: to_piece,
+                        piece_type: to_piece.clone(),
                         colour: turn.into(),
                     },
                 );
@@ -215,11 +234,13 @@ impl Board {
             MoveType::Castling(castle_side) => {
                 self.set(&to, self.get(&from).clone());
 
-                if castle_side {
+                if *castle_side {
                     self.set(
-                        &Position::new(from.file - 1, from.rank),
+                        &Position::new(to.file - 1, to.rank),
                         self.get(&Position::new(7, from.rank)).clone(),
                     );
+
+                    self.set_none(&Position::new(7, from.rank));
 
                     if turn {
                         let index = self
@@ -227,21 +248,37 @@ impl Board {
                             .iter()
                             .position(|pos| *pos == Position::new(7, from.rank))
                             .unwrap();
-                        self.white_pieces[index] = Position::new(from.file - 1, from.rank);
+                        self.white_pieces[index] = Position::new(to.file - 1, to.rank);
+                    } else {
+                        let index = self
+                            .black_pieces
+                            .iter()
+                            .position(|pos| *pos == Position::new(7, from.rank))
+                            .unwrap();
+                        self.black_pieces[index] = Position::new(to.file - 1, to.rank);
                     }
                 } else {
                     self.set(
-                        &Position::new(from.file + 1, from.rank),
+                        &Position::new(to.file + 1, to.rank),
                         self.get(&Position::new(0, from.rank)).clone(),
                     );
 
+                    self.set_none(&Position::new(0, from.rank));
+
                     if turn {
+                        let index = self
+                            .white_pieces
+                            .iter()
+                            .position(|pos| *pos == Position::new(0, from.rank))
+                            .unwrap();
+                        self.white_pieces[index] = Position::new(to.file + 1, to.rank);
+                    } else {
                         let index = self
                             .black_pieces
                             .iter()
                             .position(|pos| *pos == Position::new(0, from.rank))
                             .unwrap();
-                        self.black_pieces[index] = Position::new(from.file + 1, from.rank);
+                        self.black_pieces[index] = Position::new(to.file + 1, to.rank);
                     }
                 }
             }
@@ -251,24 +288,20 @@ impl Board {
             let index = self
                 .white_pieces
                 .iter()
-                .position(|pos| *pos == from)
+                .position(|pos| pos == from)
                 .unwrap();
             self.white_pieces[index] = to.clone();
         } else {
             let index = self
                 .black_pieces
                 .iter()
-                .position(|pos| *pos == from)
+                .position(|pos| pos == from)
                 .unwrap();
             self.black_pieces[index] = to.clone();
         }
 
         self.set_none(&from);
-        self.last_move = Some((from, to));
-
-        // self.check_state();
-
-        Ok(())
+        self.last_move = Some((from.clone(), to.clone()));
     }
 }
 
@@ -309,9 +342,7 @@ impl Board {
             }
         };
 
-        // self.check_state_after_move()
-
-        to_move_type.clone()
+        self.check_state_after_move(from, to, to_move_type, &turn_colour)
     }
 
     fn all_pawn_moves(
@@ -786,8 +817,8 @@ impl Board {
 
         if can_castle {
             if all_moves.contains(&(Position::new(from.file + 1, from.rank), MoveType::Normal))
-                && !self.is_protected_square(&Position::new(from.file + 2, from.rank), turn_colour)
                 && self.get(&Position::new(7, from.rank)).piece_type == PieceType::Rook(true)
+                && self.state != GameState::Check
             {
                 all_moves.push((
                     Position::new(from.file + 2, from.rank),
@@ -796,8 +827,8 @@ impl Board {
             }
 
             if all_moves.contains(&(Position::new(from.file - 1, from.rank), MoveType::Normal))
-                && !self.is_protected_square(&Position::new(from.file - 2, from.rank), turn_colour)
                 && self.get(&Position::new(0, from.rank)).piece_type == PieceType::Rook(true)
+                && self.state != GameState::Check
             {
                 all_moves.push((
                     Position::new(from.file - 2, from.rank),
@@ -909,6 +940,167 @@ impl Board {
         }
 
         false
+    }
+}
+
+impl Board {
+    fn check_state_after_move(
+        &self,
+        from: &Position,
+        to: &Position,
+        move_type: &MoveType,
+        turn: &PieceColour,
+    ) -> MoveType {
+        let mut board_copy = self.clone();
+        board_copy.do_the_move(from, to, move_type, turn);
+
+        let king_pos = if *turn == PieceColour::White {
+            board_copy
+                .white_pieces
+                .iter()
+                .filter(|x| match board_copy.get(x).piece_type {
+                    PieceType::King(_) => true,
+                    _ => false,
+                })
+                .next()
+                .unwrap()
+        } else {
+            board_copy
+                .black_pieces
+                .iter()
+                .filter(|x| match board_copy.get(x).piece_type {
+                    PieceType::King(_) => true,
+                    _ => false,
+                })
+                .next()
+                .unwrap()
+        };
+
+        for i in {
+            if *turn == PieceColour::White {
+                &board_copy.black_pieces
+            } else {
+                &board_copy.white_pieces
+            }
+        } {
+            let piece_to_positions = match self.get(i).piece_type {
+                PieceType::None => unreachable!(),
+                PieceType::Pawn => board_copy.all_pawn_moves(i, &turn.opposite()),
+                PieceType::Knight => board_copy.all_knight_moves(i, &turn.opposite()),
+                PieceType::Bishop => board_copy.all_bishop_moves(i, &turn.opposite()),
+                PieceType::Rook(_) => board_copy.all_rook_moves(i, &turn.opposite()),
+                PieceType::Queen => board_copy.all_queen_moves(i, &turn.opposite()),
+                PieceType::King(_) => continue,
+            };
+
+            if piece_to_positions
+                .iter()
+                .find(|i| i.0 == *king_pos)
+                .is_some()
+            {
+                return MoveType::Illegal(String::from("Illegal move"));
+            }
+        }
+
+        move_type.clone()
+    }
+
+    fn check_state(&mut self, turn: &PieceColour) {
+        let opponent_king_position = if *turn == PieceColour::White {
+            self.black_pieces
+                .iter()
+                .filter(|x| match self.get(x).piece_type {
+                    PieceType::King(_) => true,
+                    _ => false,
+                })
+                .next()
+                .unwrap()
+        } else {
+            self.white_pieces
+                .iter()
+                .filter(|x| match self.get(x).piece_type {
+                    PieceType::King(_) => true,
+                    _ => false,
+                })
+                .next()
+                .unwrap()
+        };
+
+        for current_player_piece_position in {
+            if *turn == PieceColour::White {
+                &self.white_pieces
+            } else {
+                &self.black_pieces
+            }
+        } {
+            let current_player_piece_to_positions =
+                match self.get(current_player_piece_position).piece_type {
+                    PieceType::None => unreachable!(),
+                    PieceType::Pawn => self.all_pawn_moves(current_player_piece_position, turn),
+                    PieceType::Knight => self.all_knight_moves(current_player_piece_position, turn),
+                    PieceType::Bishop => self.all_bishop_moves(current_player_piece_position, turn),
+                    PieceType::Rook(_) => self.all_rook_moves(current_player_piece_position, turn),
+                    PieceType::Queen => self.all_queen_moves(current_player_piece_position, turn),
+                    PieceType::King(_) => continue,
+                };
+
+            if current_player_piece_to_positions
+                .iter()
+                .find(|i| i.0 == *opponent_king_position)
+                .is_some()
+            {
+                self.state = GameState::Check;
+                self.state = self.can_opponent_make_move(&turn.opposite());
+            }
+        }
+    }
+
+    fn can_opponent_make_move(&self, turn: &PieceColour) -> GameState {
+        let mut can_make_move = false;
+
+        'main_loop: for opponent_piece_position in {
+            if *turn == PieceColour::White {
+                &self.black_pieces
+            } else {
+                &self.white_pieces
+            }
+        } {
+            let possible_moves = match self.get(opponent_piece_position).piece_type {
+                PieceType::None => unreachable!(),
+                PieceType::Pawn => self.all_pawn_moves(opponent_piece_position, turn),
+                PieceType::Knight => self.all_knight_moves(opponent_piece_position, turn),
+                PieceType::Bishop => self.all_bishop_moves(opponent_piece_position, turn),
+                PieceType::Rook(_) => self.all_rook_moves(opponent_piece_position, turn),
+                PieceType::Queen => self.all_queen_moves(opponent_piece_position, turn),
+                PieceType::King(can_castle) => {
+                    self.all_king_moves(opponent_piece_position, turn, can_castle)
+                }
+            };
+
+            'possible_moves_loop: for possible_move in possible_moves {
+                match self.try_move(opponent_piece_position, &possible_move.0, turn.clone()) {
+                    MoveType::Illegal(_) => continue 'possible_moves_loop,
+                    _ => {
+                        can_make_move = true;
+                        break 'main_loop;
+                    }
+                }
+            }
+        }
+
+        if can_make_move {
+            GameState::Check
+        } else {
+            if self.state == GameState::Check {
+                if *turn == PieceColour::White {
+                    GameState::BlackWins
+                } else {
+                    GameState::WhiteWins
+                }
+            } else {
+                GameState::Stalemate
+            }
+        }
     }
 }
 

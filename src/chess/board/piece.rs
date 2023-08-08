@@ -23,7 +23,7 @@ pub(super) enum PieceType {
     King(bool),
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub(super) enum PieceColour {
     None,
     White,
@@ -50,7 +50,7 @@ impl PieceColour {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(super) struct Piece {
     pub(super) piece_type: PieceType,
     pub(super) colour: PieceColour,
