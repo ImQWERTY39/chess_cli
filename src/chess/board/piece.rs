@@ -12,7 +12,7 @@ pub const MAX_POSSIBLE_BISHOP_MOVES: usize = 13;
 pub const MAX_POSSIBLE_ROOK_MOVES: usize = 14;
 pub const MAX_POSSIBLE_KING_MOVES: usize = 8;
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone)]
 pub(super) enum PieceType {
     None,
     Pawn,
@@ -23,7 +23,7 @@ pub(super) enum PieceType {
     King(bool),
 }
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone)]
 pub(super) enum PieceColour {
     None,
     White,
@@ -50,7 +50,7 @@ impl PieceColour {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(super) struct Piece {
     pub(super) piece_type: PieceType,
     pub(super) colour: PieceColour,
@@ -142,7 +142,7 @@ impl From<(char, usize, usize)> for Piece {
     }
 }
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone)]
 pub(super) enum MoveType {
     Illegal(String),
     Normal,
@@ -151,7 +151,7 @@ pub(super) enum MoveType {
     Castling(bool),
 }
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone)]
 pub struct Position {
     pub(super) file: usize,
     pub(super) rank: usize,
