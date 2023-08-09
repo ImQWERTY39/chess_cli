@@ -1007,6 +1007,8 @@ impl Board {
     }
 
     fn check_state(&mut self, turn: &PieceColour) {
+        self.state = GameState::OnGoing;
+
         let opponent_king_position = if *turn == PieceColour::White {
             self.black_pieces
                 .iter()
@@ -1055,10 +1057,14 @@ impl Board {
         }
 
         if !self.can_opponent_make_move(&turn.opposite()) {
-            if self.state == GameState::OnGoing {
-                self.state = GameState::Stalemate;
+            if self.state == GameState::Check {
+                self.state = if *turn == PieceColour::White {
+                    GameState::WhiteWins
+                } else {
+                    GameState::BlackWins
+                };
             } else {
-                self.state = GameState::OnGoing;
+                self.state = GameState::Stalemate;
             }
         }
     }
