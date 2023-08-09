@@ -841,7 +841,6 @@ impl Board {
     }
 
     fn is_protected_square(&self, square: &Position, turn_colour: &PieceColour) -> bool {
-        // CHECK IF KING IN ON PROTECTED SQUARE WHEN MAKING MOVE
         for i in {
             if *turn_colour == PieceColour::White {
                 &self.black_pieces
@@ -990,7 +989,9 @@ impl Board {
                 PieceType::Bishop => board_copy.all_bishop_moves(i, &turn.opposite()),
                 PieceType::Rook(_) => board_copy.all_rook_moves(i, &turn.opposite()),
                 PieceType::Queen => board_copy.all_queen_moves(i, &turn.opposite()),
-                PieceType::King(_) => continue,
+                PieceType::King(can_castle) => {
+                    board_copy.all_king_moves(i, &turn.opposite(), can_castle)
+                }
             };
 
             if piece_to_positions
@@ -1053,17 +1054,21 @@ impl Board {
             }
         }
 
-        self.state = self.can_opponent_make_move(&turn.opposite());
+        if !self.can_opponent_make_move(&turn.opposite()) {
+            if self.state == GameState::OnGoing {
+                self.state = GameState::Stalemate;
+            } else {
+                self.state = GameState::OnGoing;
+            }
+        }
     }
 
-    fn can_opponent_make_move(&self, turn: &PieceColour) -> GameState {
-        let mut can_make_move = false;
-
-        'main_loop: for opponent_piece_position in {
+    fn can_opponent_make_move(&self, turn: &PieceColour) -> bool {
+        for opponent_piece_position in {
             if *turn == PieceColour::White {
-                &self.black_pieces
-            } else {
                 &self.white_pieces
+            } else {
+                &self.black_pieces
             }
         } {
             let possible_moves = match self.get(opponent_piece_position).piece_type {
@@ -1078,30 +1083,17 @@ impl Board {
                 }
             };
 
-            'possible_moves_loop: for possible_move in possible_moves {
+            for possible_move in possible_moves {
                 match self.try_move(opponent_piece_position, &possible_move.0, turn.clone()) {
-                    MoveType::Illegal(_) => continue 'possible_moves_loop,
+                    MoveType::Illegal(_) => (),
                     _ => {
-                        can_make_move = true;
-                        break 'main_loop;
+                        return true;
                     }
                 }
             }
         }
 
-        if can_make_move {
-            GameState::Check
-        } else {
-            if self.state == GameState::Check {
-                if *turn == PieceColour::White {
-                    GameState::BlackWins
-                } else {
-                    GameState::WhiteWins
-                }
-            } else {
-                GameState::Stalemate
-            }
-        }
+        false
     }
 }
 
