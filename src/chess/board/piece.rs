@@ -62,44 +62,44 @@ impl ToString for Piece {
             PieceType::None => " ",
             PieceType::Pawn => {
                 if self.colour == PieceColour::White {
-                    "♟"
+                    "P"
                 } else {
-                    "♙"
+                    "p"
                 }
             }
             PieceType::Knight => {
                 if self.colour == PieceColour::White {
-                    "♞"
+                    "N"
                 } else {
-                    "♘"
+                    "n"
                 }
             }
             PieceType::Bishop => {
                 if self.colour == PieceColour::White {
-                    "♝"
+                    "B"
                 } else {
-                    "♗"
+                    "b"
                 }
             }
             PieceType::Rook(_) => {
                 if self.colour == PieceColour::White {
-                    "♜"
+                    "R"
                 } else {
-                    "♖"
+                    "r"
                 }
             }
             PieceType::Queen => {
                 if self.colour == PieceColour::White {
-                    "♛"
+                    "Q"
                 } else {
-                    "♕"
+                    "q"
                 }
             }
             PieceType::King(_) => {
                 if self.colour == PieceColour::White {
-                    "♚"
+                    "K"
                 } else {
-                    "♔"
+                    "k"
                 }
             }
         }

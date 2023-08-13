@@ -49,8 +49,13 @@ fn two_players(board: &mut Board) {
 
     while !board.game_over() {
         println!(
-            "{CLEAR_SCREEN}{}\n{}",
+            "{CLEAR_SCREEN}{}\n{}{}",
             board.as_string(turn),
+            if board.state == GameState::Check {
+                "CHECK\n"
+            } else {
+                ""
+            },
             if turn { "White's turn" } else { "Black's turn" }
         );
 
@@ -150,7 +155,7 @@ fn validate_position(pos: &str) -> Result<(), ()> {
     let file = pos_bytes[0];
     let rank = pos_bytes[1];
 
-    if !(97..=104).contains(&file) || !(48..=56).contains(&rank) {
+    if !(97..=104).contains(&file) || !(49..=56).contains(&rank) {
         return Err(());
     }
 
