@@ -104,7 +104,7 @@ fn two_players(board: &mut Board) {
         }
     }
 
-    print!("\x1B[2J\x1B[1;1H\n{}\n", board.as_string(turn));
+    // print!("\x1B[2J\x1B[1;1H\n{}\n", board.as_string(turn));
 
     match board.state {
         GameState::Stalemate => println!("Stalemate"),
